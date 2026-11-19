@@ -1,0 +1,30 @@
+{
+  "name": "zamorin-cafe-erp-frontend",
+  "version": "1.0.0",
+  "description": "Zamorin Cafe ERP — Enterprise Web Application UI",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node ../scripts/serve_frontend.js",
+    "serve": "node ../scripts/serve_frontend.js",
+    "verify:imports": "node verifyRouterImports.mjs",
+    "verify:all": "node ../scripts/verify_all_master.mjs",
+    "audit": "node ../scripts/verify_all_master.mjs",
+    "css:build": "tailwindcss -i ./src/styles/tailwind.css -o ./src/styles/tailwind.build.css --minify",
+    "css:watch": "tailwindcss -i ./src/styles/tailwind.css -o ./src/styles/tailwind.build.css --watch",
+    "build": "npm run css:build && echo \"Zero-build Vanilla ES Modules — Ready for direct static serving.\""
+  },
+  "keywords": [
+    "zamorin-cafe-erp",
+    "frontend",
+    "vanilla-js",
+    "es-modules",
+    "pwa"
+  ],
+  "author": "Zamorin Cafe Operations Engineering",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "tailwindcss": "^4.3.3"
+  }
+}

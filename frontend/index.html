@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="azure">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zamorin Cafe ERP</title>
+  <meta name="theme-color" content="#1D4ED8" />
+  <meta name="description" content="Zamorin Cafe ERP — secure multi-location café management system" />
+  <link rel="icon" type="image/svg+xml" href="/src/assets/zamorin-app-icon-vector.svg" />
+  <link rel="apple-touch-icon" href="/src/assets/zamorin-app-icon-1024.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Poppins:wght@400;500;600;700&display=swap" />
+  <!-- Critical assets preload for immediate first paint -->
+  <link rel="preload" as="image" href="/src/assets/zamorin-logo-stacked.svg" fetchpriority="high" />
+  <!-- Authoritative Production Design System (Tailwind CSS v4 + Zamorin ERP UI Kit) -->
+  <!-- Tailwind utilities are compiled from src/styles/tailwind.css and load first so
+       the UI kit (app.css) always wins on shared class names. -->
+  <link rel="stylesheet" href="/src/styles/tailwind.build.css?v=4.0.0" />
+  <link rel="stylesheet" href="/app.css?v=4.0.0" />
+  <link rel="stylesheet" href="/src/styles/login2.css?v=4.0.0" />
+  <script>
+    (function() {
+      try {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            for (var r of registrations) { r.unregister(); }
+          });
+        }
+        if ('caches' in window) {
+          caches.keys().then(function(names) {
+            for (var n of names) caches.delete(n);
+          });
+        }
+        var savedTheme = localStorage.getItem('zamorin-theme') || localStorage.getItem('zm-theme');
+        if (['azure', 'pearl', 'paper', 'verdigris', 'midnight', 'noir'].indexOf(savedTheme) === -1) savedTheme = 'azure';
+        document.documentElement.dataset.theme = savedTheme;
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        var savedFontSize = localStorage.getItem('zamorin-font-size') || 'standard';
+        document.documentElement.dataset.fontSize = savedFontSize;
+      } catch (e) {}
+    })();
+    // Dynamic API URL Resolution:
+    // 1. Explicit window override (if injected by reverse proxy / host environment)
+    // 2. Operator override from localStorage
+    // 3. Same-origin relative endpoint (/api/v1). The dev frontend server proxies
+    //    /api/* to the backend, which avoids cross-origin/CORS and IPv6-localhost
+    //    failures when the UI is opened as http://localhost:3000.
+    window.ZAMORIN_API_BASE_URL = window.ZAMORIN_API_BASE_URL ||
+      localStorage.getItem('zamorin_api_url') ||
+      '/api/v1';
+  </script>
+</head>
+<body style="background-color: #0b1120; margin: 0;">
+  <div id="app" class="auth-screen"></div>
+  <div id="toast-root"></div>
+
+  <script type="module" src="/src/js/main.js?v=3.5.2"></script>
+</body>
+</html>

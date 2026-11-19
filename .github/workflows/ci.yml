@@ -1,0 +1,252 @@
+name: Zamorin Cafe ERP CI
+
+on:
+  push:
+    branches: [ main, master, 'owner-strategic-*' ]
+  pull_request:
+    branches: [ main, master, 'owner-strategic-*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-web:
+    name: Web & Backend Verification Suite
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js v24 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install Root Dependencies
+        run: npm ci
+
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Verify Backend JavaScript Syntax
+        working-directory: ./backend
+        run: npm run check
+
+      - name: Scan Repository for Committed Secrets
+        run: node scripts/scan_secrets.mjs
+
+      - name: Run Canonical Regression Suite
+        run: npm test
+
+      - name: Verify Frontend Router Imports
+        run: node frontend/verifyRouterImports.mjs
+
+      - name: Run Master System Verification Engine
+        run: node scripts/master_system_verification.mjs
+
+      - name: Run Deployment Readiness Check
+        run: node scripts/check_deploy_readiness.mjs
+
+  android:
+    name: Android Native Client CI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Grant Execute Permission to Gradlew
+        working-directory: ./Platform/Android
+        run: chmod +x gradlew
+
+      - name: Run Android Native Unit Tests
+        working-directory: ./Platform/Android
+        run: ./gradlew test
+
+      - name: Run Android Lint
+        working-directory: ./Platform/Android
+        run: ./gradlew lintDebug
+
+      - name: Compile Debug APK
+        working-directory: ./Platform/Android
+        run: ./gradlew assembleDebug
+
+  windows:
+    name: Windows Native Client CI
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore Dependencies
+        run: |
+          dotnet restore Platform/Windows/ZamorinCafeERP/ZamorinCafeERP.csproj
+          dotnet restore Platform/Windows/ZamorinCafeERP.Tests/ZamorinCafeERP.Tests.csproj
+
+      - name: Run Windows Native Unit Tests
+        run: dotnet test Platform/Windows/ZamorinCafeERP.Tests -c Release
+
+      - name: Publish Windows Native Shell
+        run: dotnet publish Platform/Windows/ZamorinCafeERP -c Release
+
+  apple:
+    name: Apple Native Client CI
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Verify Git HEAD Provenance
+        run: |
+          echo "=== Git Provenance Verification ==="
+          CI_HEAD=$(git rev-parse HEAD)
+          echo "Checked out HEAD: $CI_HEAD"
+          mkdir -p build/artifacts
+          echo "$CI_HEAD" > build/artifacts/checked-out-sha.txt
+
+      - name: Select Xcode 26+ Toolchain & Audit Environment
+        run: |
+          echo "=== Selecting Xcode Toolchain ==="
+          if [ -d "/Applications/Xcode_26.6.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.6.app
+          elif [ -d "/Applications/Xcode_26.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.app
+          fi
+          mkdir -p build/artifacts
+          EVIDENCE_FILE="build/artifacts/toolchain-raw-evidence.txt"
+          echo "=== Apple CI Toolchain Raw Evidence ===" | tee "$EVIDENCE_FILE"
+          echo "Checked out SHA: $(git rev-parse HEAD)" | tee -a "$EVIDENCE_FILE"
+          echo "--- Runner Environment Variables ---" | tee -a "$EVIDENCE_FILE"
+          echo "ImageOS: $ImageOS" | tee -a "$EVIDENCE_FILE"
+          echo "ImageVersion: $ImageVersion" | tee -a "$EVIDENCE_FILE"
+          echo "RUNNER_OS: $RUNNER_OS" | tee -a "$EVIDENCE_FILE"
+          echo "RUNNER_ARCH: $RUNNER_ARCH" | tee -a "$EVIDENCE_FILE"
+          echo "--- sw_vers ---" | tee -a "$EVIDENCE_FILE"
+          sw_vers | tee -a "$EVIDENCE_FILE"
+          echo "--- uname -m ---" | tee -a "$EVIDENCE_FILE"
+          uname -m | tee -a "$EVIDENCE_FILE"
+          echo "--- xcode-select -p ---" | tee -a "$EVIDENCE_FILE"
+          xcode-select -p | tee -a "$EVIDENCE_FILE"
+          echo "--- xcodebuild -version ---" | tee -a "$EVIDENCE_FILE"
+          xcodebuild -version | tee -a "$EVIDENCE_FILE"
+          echo "--- swift --version ---" | tee -a "$EVIDENCE_FILE"
+          swift --version | tee -a "$EVIDENCE_FILE"
+          echo "--- xcodebuild -showsdks ---" | tee -a "$EVIDENCE_FILE"
+          xcodebuild -showsdks | tee -a "$EVIDENCE_FILE"
+          echo "--- xcrun --sdk iphoneos --show-sdk-version ---" | tee -a "$EVIDENCE_FILE"
+          xcrun --sdk iphoneos --show-sdk-version | tee -a "$EVIDENCE_FILE"
+          echo "--- xcrun --sdk iphonesimulator --show-sdk-version ---" | tee -a "$EVIDENCE_FILE"
+          xcrun --sdk iphonesimulator --show-sdk-version | tee -a "$EVIDENCE_FILE"
+          echo "--- xcrun --sdk macosx --show-sdk-version ---" | tee -a "$EVIDENCE_FILE"
+          xcrun --sdk macosx --show-sdk-version | tee -a "$EVIDENCE_FILE"
+
+      - name: Discover Simulators & Prepare Environments
+        run: |
+          echo "=== Available Simulators ==="
+          xcrun simctl list devices available
+          mkdir -p build/artifacts
+          IPHONE_ID=$(xcrun simctl list devices available -j | jq -r '[.devices[] | .[] | select(.name | contains("iPhone"))][0].udid')
+          IPHONE_NAME=$(xcrun simctl list devices available -j | jq -r '[.devices[] | .[] | select(.name | contains("iPhone"))][0].name')
+          IPAD_ID=$(xcrun simctl list devices available -j | jq -r '[.devices[] | .[] | select(.name | contains("iPad"))][0].udid')
+          IPAD_NAME=$(xcrun simctl list devices available -j | jq -r '[.devices[] | .[] | select(.name | contains("iPad"))][0].name')
+          echo "Selected iPhone Simulator: $IPHONE_NAME ($IPHONE_ID)"
+          echo "Selected iPad Simulator: $IPAD_NAME ($IPAD_ID)"
+
+      - name: Build iOS Application (iPhone Simulator)
+        run: |
+          xcodebuild build \
+            -project Platform/Apple/ios/ZamorinCafeERP.xcodeproj \
+            -scheme ZamorinCafeERP \
+            -destination "generic/platform=iOS Simulator" \
+            CODE_SIGNING_ALLOWED=NO \
+            -derivedDataPath build/ios
+
+      - name: Run iOS Unit Tests (iPhone Simulator XCTest)
+        run: |
+          IPHONE_ID=$(xcrun simctl list devices available -j | jq -r '[.devices[] | .[] | select(.name | contains("iPhone"))][0].udid')
+          echo "Targeting iPhone Simulator UDID: $IPHONE_ID"
+          xcodebuild test \
+            -project Platform/Apple/ios/ZamorinCafeERP.xcodeproj \
+            -scheme ZamorinCafeERP \
+            -destination "id=$IPHONE_ID" \
+            -resultBundlePath build/artifacts/iPhoneSimulator.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            -derivedDataPath build/ios-test
+
+      - name: Build iPadOS Application (iPad Simulator)
+        run: |
+          xcodebuild build \
+            -project Platform/Apple/ios/ZamorinCafeERP.xcodeproj \
+            -scheme ZamorinCafeERP \
+            -destination "generic/platform=iOS Simulator" \
+            TARGETED_DEVICE_FAMILY="2" \
+            CODE_SIGNING_ALLOWED=NO \
+            -derivedDataPath build/ipad
+
+      - name: Run iPadOS Unit Tests (iPad Simulator XCTest)
+        run: |
+          IPAD_ID=$(xcrun simctl list devices available -j | jq -r '[.devices[] | .[] | select(.name | contains("iPad"))][0].udid')
+          echo "Targeting iPad Simulator UDID: $IPAD_ID"
+          xcodebuild test \
+            -project Platform/Apple/ios/ZamorinCafeERP.xcodeproj \
+            -scheme ZamorinCafeERP \
+            -destination "id=$IPAD_ID" \
+            -resultBundlePath build/artifacts/iPadSimulator.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            -derivedDataPath build/ipad-test
+
+      - name: Build macOS Application
+        run: |
+          xcodebuild build \
+            -project Platform/Apple/macos/ZamorinCafeERP.xcodeproj \
+            -scheme ZamorinCafeERPMac \
+            -destination "platform=macOS" \
+            CODE_SIGNING_ALLOWED=NO \
+            -derivedDataPath build/macos
+
+      - name: Run macOS Unit Tests (macOS XCTest)
+        run: |
+          xcodebuild test \
+            -project Platform/Apple/macos/ZamorinCafeERP.xcodeproj \
+            -scheme ZamorinCafeERPMac \
+            -destination "platform=macOS" \
+            -resultBundlePath build/artifacts/macOS.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            -derivedDataPath build/macos-test
+
+      - name: Verify Bundle Content & Privacy Manifest Packaging
+        run: |
+          echo "=== Verifying iOS Simulator App Bundle ==="
+          find build/ios -name "ZamorinCafeERP.app" -type d
+          echo "=== Verifying macOS App Bundle ==="
+          find build/macos -name "ZamorinCafeERP.app" -type d
+
+      - name: Upload Test Results & Toolchain Artifacts (.xcresult)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apple-ci-artifacts
+          path: build/artifacts/
+          retention-days: 7
+
+
+

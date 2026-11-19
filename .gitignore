@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment Variables & Secrets
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+!.env.production.example
+!**/.env.production.example
+
+# Local Storage & Uploads
+.local-private-storage/
+.local-evidence-storage/
+backend/uploads/
+Backend/uploads/
+backups/zamorin_backup_*.json
+backend/backups/zamorin_backup_*.json
+Backend/backups/zamorin_backup_*.json
+backend/backups/pre_handover_sanitisation_*
+Backend/backups/pre_handover_sanitisation_*
+/settings.json
+
+logs/
+*.log
+*.tmp
+
+# Browser Automation & Testing Profiles
+.chrome*
+.tmp_chrome*
+.system_generated/
+scratch/
+
+# Preserved Archives & Evidence (Non-Runtime)
+Archive/
+Evidence/
+Documentation/
+Deployment/
+
+LOGIN-PAGE-2.0-main/
+
+# Platform Build Artifacts
+windows/**/bin/
+windows/**/obj/
+Platform/Windows/**/bin/
+Platform/Windows/**/obj/
+**/bin/
+**/obj/
+.build/
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+*.xcworkspace/*
+!*.xcworkspace/contents.xcworkspacedata
+DerivedData/
+
+.vercel

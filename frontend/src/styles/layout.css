@@ -1,0 +1,207 @@
+/* =========================================================================
+   ZAMORIN CAFE ERP — APP SHELL LAYOUT v3
+   The shell (sidebar + topbar) mounts once and never remounts on navigation.
+   Only #page-content is replaced when the route changes.
+   ========================================================================= */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  min-height: 100%;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: var(--font-ui, "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+  color: var(--ink, #17140f);
+  background: var(--paper, #faf9f5);
+  min-height: 100vh;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display, "Fraunces", Georgia, serif);
+}
+
+/* ---- Root app container ---- */
+#app {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#app.auth-screen {
+  display: block;
+  padding: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* ---- Legacy sidebar (replaced by .sidebar in zamorin.css) ---- */
+#sidebar {
+  grid-row: 1 / span 2;
+  background: var(--surface, #ffffff);
+  border-right: 1px solid var(--line, #e7e2d5);
+  border-radius: 0;
+  padding: 18px 12px;
+  display: flex;
+  flex-direction: column;
+  color: var(--ink, #17140f);
+  overflow-y: auto;
+}
+
+/* ---- Legacy brand row ---- */
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 20px 8px;
+}
+.brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--ink-900, #101a30);
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+}
+.brand-name {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ink, #17140f);
+}
+
+/* ---- Nav scope label ---- */
+.nav-scope-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 6px 10px 5px;
+  color: var(--muted-2, #96907e);
+  text-transform: uppercase;
+}
+
+/* ---- Nav list ---- */
+.nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ---- Nav footnote ---- */
+.nav-footnote {
+  margin-top: auto;
+  font-size: 11.5px;
+  color: var(--muted, #6f6a5c);
+  padding: 10px 10px;
+  line-height: 1.4;
+}
+
+/* ---- Legacy topbar ---- */
+#topbar {
+  grid-column: 2;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--paper, #faf9f5) 90%, transparent);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-bottom: 1px solid var(--line, #e7e2d5);
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--topbar, 72px);
+}
+
+/* ---- Page content area ---- */
+#page-content {
+  grid-column: 2;
+  overflow-y: auto;
+  padding-bottom: 24px;
+}
+
+/* ============================================================
+   UTILITY CLASSES
+   ============================================================ */
+.muted-white { color: var(--text-on-glass-muted, #96907e); }
+.muted-dark  { color: var(--muted, #6f6a5c); }
+
+/* Flex */
+.flex          { display: flex; }
+.flex-col      { display: flex; flex-direction: column; }
+.items-center  { align-items: center; }
+.items-start   { align-items: flex-start; }
+.items-end     { align-items: flex-end; }
+.justify-between { justify-content: space-between; }
+.justify-center  { justify-content: center; }
+.justify-end     { justify-content: flex-end; }
+
+/* Gap */
+.gap-xs { gap: 4px; }
+.gap-sm { gap: 8px; }
+.gap-md { gap: 16px; }
+.gap-lg { gap: 24px; }
+.gap-xl { gap: 32px; }
+
+/* Text */
+.text-sm   { font-size: 0.78rem; }
+.text-base { font-size: 0.875rem; }
+.text-lg   { font-size: 1rem; }
+.text-xl   { font-size: 1.15rem; }
+.text-2xl  { font-size: 1.4rem; }
+.text-muted   { color: var(--muted); }
+.text-danger  { color: var(--danger); }
+.text-success { color: var(--success); }
+.text-warning { color: var(--warning); }
+.text-ink     { color: var(--ink); }
+.text-bold    { font-weight: 700; }
+.text-semibold { font-weight: 600; }
+.font-mono    { font-family: var(--font-mono); }
+.font-display { font-family: var(--font-display); }
+.tabular-nums { font-variant-numeric: tabular-nums; }
+.uppercase    { text-transform: uppercase; letter-spacing: 0.04em; }
+.truncate     { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Spacing */
+.mt-xs { margin-top: 4px; }
+.mt-sm { margin-top: 8px; }
+.mt-md { margin-top: 16px; }
+.mt-lg { margin-top: 24px; }
+.mb-xs { margin-bottom: 4px; }
+.mb-sm { margin-bottom: 8px; }
+.mb-md { margin-bottom: 16px; }
+.mb-lg { margin-bottom: 24px; }
+.p-sm  { padding: 8px; }
+.p-md  { padding: 16px; }
+.p-lg  { padding: 24px; }
+
+/* Display */
+.hidden  { display: none !important; }
+.block   { display: block; }
+.inline  { display: inline; }
+.w-full  { width: 100%; }
+.h-full  { height: 100%; }
+.min-w-0 { min-width: 0; }
+.relative { position: relative; }
+.overflow-hidden { overflow: hidden; }
+
+/* Borders */
+.border-bottom { border-bottom: 1px solid var(--line); }
+.border-top    { border-top: 1px solid var(--line); }
+.rounded-sm    { border-radius: var(--radius-sm); }
+.rounded-md    { border-radius: var(--radius-md); }
+.rounded-full  { border-radius: var(--radius-pill); }

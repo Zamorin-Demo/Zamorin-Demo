@@ -79,3 +79,13 @@ cd /home/ubuntu/zamorin-demo && docker compose down -v
 | **Total** | **~$16.82** | **~$44.85** |
 
 Well within $195 credits (expires Feb 06, 2027).
+
+## Critical: Docker Network
+
+When starting services, ALWAYS use `docker compose up -d` — never `docker run` for individual services. If Caddy is started outside Compose, it won't be on the same Docker network as the backend and API calls will return 502 (causing the frontend to appear to continuously reload).
+
+If this happens, fix it with:
+```bash
+docker network connect zamorin-demo_default zamorin-frontend-ui
+docker restart zamorin-frontend-ui
+```

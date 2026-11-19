@@ -1,13 +1,11 @@
 # ============================================================================
 # Zamorin Cafe ERP — Demo Caddyfile (auto-HTTPS via Let's Encrypt + sslip.io)
-# No domain needed: https://<elastic-ip-with-dashes>.sslip.io
 # ============================================================================
 {
-    # Email for Let's Encrypt (optional but recommended)
-    # email demo@zamorin.cafe
+    email demo@zamorin.cafe
 }
 
-:80, :443 {
+13-202-144-116.sslip.io {
     root * /srv/frontend
     file_server
 

@@ -120,3 +120,21 @@ docker compose up -d frontend
 | Caddy/Frontend | Running on compose network, healthy |
 | Login | pradeeshk331@gmail.com / master@zamorin.cafe |
 | App PIN | 847291 |
+
+## Deploy approach (updated)
+
+The demo now builds the backend image locally on the EC2 instance (no ECR needed).
+To deploy a new tag:
+
+```bash
+git tag v0.3.0-demo
+git push origin v0.3.0-demo
+# → GitHub Actions triggers SSM → instance builds locally from Dockerfile
+```
+
+Or deploy manually:
+```bash
+EC2_INSTANCE_ID=i-0809330bf1e8a2aad ./scripts/deploy.sh v0.3.0-demo
+```
+
+The instance builds from the local Dockerfile, so no ECR credentials or image pushes are needed.

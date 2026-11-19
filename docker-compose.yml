@@ -39,8 +39,11 @@ services:
       retries: 5
 
   backend:
-    # Image pulled from ECR. Tag is injected by deploy script or CI.
-    image: ${ECR_REGISTRY:-000000000000.dkr.ecr.ap-south-1.amazonaws.com}/zamorin-demo:${IMAGE_TAG:-latest}
+    # Built locally from source (no ECR pull needed for demo)
+    build:
+      context: .
+      dockerfile: Dockerfile
+    pull_policy: never
     container_name: zamorin-backend-api
     restart: always
     ports:

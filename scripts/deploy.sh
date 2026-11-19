@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 # ============================================================================
-# Zamorin Demo — Tag-based deploy to EC2 via ECR + SSM
-# Usage: ./scripts/deploy.sh <tag>   e.g. ./scripts/deploy.sh v0.1.0-demo
+# Zamorin Demo — Tag-based deploy to EC2 via SSM
+# Usage: ./scripts/deploy.sh <tag>   e.g. ./scripts/deploy.sh v0.2.0-demo
+# Builds the backend image locally on the instance (no ECR needed for demo).
 # ============================================================================
 set -euo pipefail
 
-TAG="${1:?Usage: $0 <git-tag>  (e.g. v0.1.0-demo)}"
+TAG="${1:?Usage: $0 <git-tag>  (e.g. v0.2.0-demo)}"
 REGION="${AWS_REGION:-ap-south-1}"
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-ECR_REPO="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/zamorin-demo"
 INSTANCE_ID="${EC2_INSTANCE_ID:?Set EC2_INSTANCE_ID env var}"
 
 echo "=== Deploying tag $TAG to instance $INSTANCE_ID ==="
@@ -22,30 +21,15 @@ fi
 # 2. Checkout the tagged commit
 git checkout "$TAG" 2>/dev/null || git checkout "tags/$TAG"
 
-# 3. Build + push image to ECR
-echo "--- Authenticating to ECR ---"
-aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com"
-
-echo "--- Building image ---"
-docker build -t zamorin-demo .
-
-echo "--- Pushing to ECR ---"
-docker tag zamorin-demo:latest "$ECR_REPO:$TAG"
-docker tag zamorin-demo:latest "$ECR_REPO:latest"
-docker push "$ECR_REPO:$TAG"
-docker push "$ECR_REPO:latest"
-
-# 4. Trigger deploy on EC2 via SSM (no SSH needed)
+# 3. Trigger deploy on EC2 via SSM (no SSH needed)
 echo "--- Triggering deploy via SSM ---"
 COMMAND_ID=$(aws ssm send-command \
   --instance-ids "$INSTANCE_ID" \
   --document-name "AWS-RunShellScript" \
   --parameters "commands=[
-    \"aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com\",
     \"cd /home/ubuntu/zamorin-demo && git pull\",
-    \"IMAGE_TAG=$TAG docker compose pull backend\",
-    \"IMAGE_TAG=$TAG docker compose up -d --no-deps backend\",
-    \"sleep 20 && curl -sf http://localhost:4000/health/ready && echo HEALTH_OK || echo HEALTH_FAILED\"
+    \"docker compose up -d --build backend\",
+    \"sleep 30 && curl -sf http://localhost:4000/health/ready && echo HEALTH_OK || echo HEALTH_FAILED\"
   ]" \
   --region "$REGION" \
   --query "Command.CommandId" --output text)

@@ -8,11 +8,10 @@ on:
 
 env:
   AWS_REGION: ap-south-1
-  ECR_REPOSITORY: zamorin-demo
 
 jobs:
-  build-and-deploy:
-    name: Build, push to ECR, deploy via SSM
+  deploy:
+    name: Deploy via SSM (local build on instance)
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -29,22 +28,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build, tag, and push image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.ref_name }}
-        run: |
-          docker build -t zamorin-demo .
-          docker tag zamorin-demo:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker tag zamorin-demo:latest $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          echo "Pushed $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-
       - name: Deploy via SSM
         env:
           IMAGE_TAG: ${{ github.ref_name }}
@@ -54,9 +37,9 @@ jobs:
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --parameters "commands=[
-              \"aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY\",
-              \"cd /home/ubuntu/zamorin-demo && IMAGE_TAG=$IMAGE_TAG docker compose pull backend && IMAGE_TAG=$IMAGE_TAG docker compose up -d --no-deps backend\",
-              \"sleep 15 && docker compose exec -T backend node -e \\\"fetch('http://127.0.0.1:4000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\\\" && echo HEALTH_OK || echo HEALTH_FAILED\"
+              \"cd /home/ubuntu/zamorin-demo && git pull\",
+              \"docker compose up -d --build backend\",
+              \"sleep 30 && curl -sf http://localhost:4000/health/ready && echo HEALTH_OK || echo HEALTH_FAILED\"
             ]" \
             --region "$AWS_REGION" \
             --query "Command.CommandId" --output text)

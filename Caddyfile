@@ -7,7 +7,7 @@
 
 :3000, :80 {
     # Serve static frontend files
-    root * ./Frontend
+    root * ./frontend
     file_server
 
     # Reverse proxy backend API endpoints

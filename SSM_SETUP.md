@@ -1,121 +1,81 @@
 # SSM + ECR Setup Runbook (one-time)
 
-## 1. Create ECR repository
+## What was provisioned (already done)
+
+| Resource | Value |
+|---|---|
+| AWS Account | 290719180191 |
+| Region | ap-south-1 |
+| IAM Role | `zamorin-demo-ec2-role` |
+| IAM Instance Profile | `zamorin-demo-ec2-profile` |
+| Security Group | `zamorin-demo-sg` (ports 80, 443 only) |
+| AMI | Ubuntu 24.04 LTS (ami-0d49397b762873260) |
+| Instance Type | t3.small |
+| EC2 Instance | `i-0809330bf1e8a2aad` |
+| Elastic IP | `13.202.144.116` |
+| Demo URL | `https://13-202-144-116.sslip.io` |
+| ECR Repo | `290719180191.dkr.ecr.ap-south-1.amazonaws.com/zamorin-demo` |
+| CI User | `zamorin-demo-ci` (AccessKeyId: AKIAUHMBWUWPUTYB6DOB) |
+
+## Prerequisites for redeploy on this instance
+
+The EC2 instance already has Docker installed and the demo repo cloned at `/home/ubuntu/zamorin-demo`. To deploy a new tag:
 
 ```bash
-aws ecr create-repository --repository-name zamorin-demo --region ap-south-1
+# From your laptop
+export EC2_INSTANCE_ID=i-0809330bf1e8a2aad
+export AWS_REGION=ap-south-1
+
+# Create and push a tag
+git tag v0.2.0-demo
+git push origin v0.2.0-demo
+
+# Or deploy manually
+./scripts/deploy.sh v0.2.0-demo
 ```
 
-## 2. Create IAM role for EC2
+## Gotchas learned during setup
 
-Create a role `zamorin-demo-ec2-role` with these managed policies:
-- `AmazonSSMManagedInstanceCore` — enables Session Manager + Run Command (no SSH needed)
-- `AmazonEC2ContainerRegistryReadOnly` — allows pulling images from ECR
+1. **MongoDB ulimit**: The `t3.small` default ulimit (1024) causes "Too many open files" in MongoDB. The `docker-compose.yml` now includes `ulimits.nofile: 65536` for the MongoDB service.
 
-Attach this role to your EC2 instance as an instance profile.
+2. **MongoDB replica set**: Must be initiated manually after first start:
+   ```bash
+   docker exec zamorin-mongodb mongosh --eval "rs.initiate({_id: \"rs0\", members: [{_id: 0, host: \"mongodb:27017\"}]})"
+   ```
 
-## 3. Launch EC2
+3. **ALLOWED_ORIGINS**: Production startup validator rejects `http://` origins unless they're `localhost` or `127.0.0.1`. Use only `https://` origins for non-loopback IPs/domains.
 
-- AMI: Ubuntu 24.04 LTS
-- Type: t3.small
-- Region: ap-south-1
-- Security group: inbound 80 + 443 from 0.0.0.0/0 (NO port 22 needed)
-- Instance profile: zamorin-demo-ec2-role
-- Storage: 20 GB gp3
+4. **Caddyfile hostname**: Caddy needs an explicit server name (e.g. `13-202-144-116.sslip.io`) to obtain a Let's Encrypt certificate. Without it, only HTTP works.
 
-## 4. Allocate Elastic IP
+5. **Restart vs recreate**: `docker compose restart` doesn't re-read `.env` changes. Use `docker compose up -d --no-deps backend` to recreate containers with updated env vars.
 
-EC2 Console → Elastic IPs → Allocate → Associate with instance. Note the IP.
+6. **Tag-based deploys**: Only tags matching `v*-demo` trigger the GitHub Actions workflow. Push a tag to deploy; untagged pushes don't deploy.
 
-## 5. Install Docker (via SSM Session Manager)
+## GitHub Actions secrets needed (for CI)
 
-```bash
-aws ssm start-session --target i-xxxxxxxxx --region ap-south-1
+| Secret | Value |
+|---|---|
+| `AWS_ACCESS_KEY_ID` | AKIAUHMBWUWPUTYB6DOB (from `zamorin-demo-ci` user) |
+| `AWS_SECRET_ACCESS_KEY` | (SecretAccessKey from user creation) |
+| `EC2_INSTANCE_ID` | i-0809330bf1e8a2aad |
 
-# Inside the session:
-sudo apt update && sudo apt install -y docker.io docker-compose-v2
-sudo usermod -aG docker ubuntu
-# Log out and reconnect
-```
-
-## 6. Deploy initial stack
-
-```bash
-# Via SSM session:
-cd /home/ubuntu
-git clone <your-demo-repo> zamorin-demo
-cd zamorin-demo
-cp .env.demo.example .env
-nano .env   # fill in Elastic IP, secrets, master credentials
-docker compose up -d
-```
-
-## 7. Verify
-
-```bash
-# From your laptop:
-curl https://<elastic-ip-with-dashes>.sslip.io/health/ready
-```
-
-## 8. Set up GitHub Actions (for tag-triggered deploys)
-
-In your demo repo's GitHub settings, add these secrets:
-- `AWS_ACCESS_KEY_ID` — IAM user with ECR push + SSM send-command permissions
-- `AWS_SECRET_ACCESS_KEY`
-- `EC2_INSTANCE_ID` — e.g. i-0abc123def456
-
-IAM policy for the CI user (least privilege):
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "ecr:GetAuthorizationToken",
-        "ecr:BatchCheckLayerAvailability",
-        "ecr:PutImage",
-        "ecr:InitiateLayerUpload",
-        "ecr:UploadLayerPart",
-        "ecr:CompleteLayerUpload"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": "ssm:SendCommand",
-      "Resource": "arn:aws:ssm:ap-south-1:*:document/AWS-RunShellScript"
-    },
-    {
-      "Effect": "Allow",
-      "Action": "ssm:GetCommandInvocation",
-      "Resource": "*"
-    }
-  ]
-}
-```
-
-## 9. Deploy via tag
-
-```bash
-# On your laptop:
-git tag v0.1.0-demo
-git push origin v0.1.0-demo
-# → GitHub Actions builds, pushes to ECR, triggers SSM deploy
-# → EC2 pulls new image and restarts backend
-```
-
-## 10. Manual deploy (without CI)
-
-```bash
-AWS_REGION=ap-south-1 EC2_INSTANCE_ID=i-xxxxxxxxx ./scripts/deploy.sh v0.1.0-demo
-```
-
-## 11. Teardown
+## Teardown
 
 ```bash
 # Via SSM session:
+aws ssm start-session --target i-0809330bf1e8a2aad --region ap-south-1
 cd /home/ubuntu/zamorin-demo && docker compose down -v
 
 # Then in AWS console: terminate EC2, release Elastic IP, delete ECR repo
 ```
+
+## Cost (80-day demo window)
+
+| Item | Monthly | 80 days |
+|---|---|---|
+| EC2 t3.small | $15.20 | ~$40.50 |
+| EBS 20 GB | $1.60 | ~$4.30 |
+| ECR storage | ~$0.02 | ~$0.05 |
+| **Total** | **~$16.82** | **~$44.85** |
+
+Well within $195 credits (expires Feb 06, 2027).

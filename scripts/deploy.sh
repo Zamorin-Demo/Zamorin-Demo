@@ -42,15 +42,16 @@ COMMAND_ID=$(aws ssm send-command \
   --document-name "AWS-RunShellScript" \
   --parameters "commands=[
     \"aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com\",
-    \"cd /home/ubuntu/zamorin-demo && IMAGE_TAG=$TAG docker compose pull backend && IMAGE_TAG=$TAG docker compose up -d --no-deps backend\",
-    \"sleep 10 && docker compose exec -T backend node -e \\\"fetch('http://127.0.0.1:4000/health/ready').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))\\\" && echo HEALTH_OK || echo HEALTH_FAILED\"
+    \"cd /home/ubuntu/zamorin-demo && git pull\",
+    \"IMAGE_TAG=$TAG docker compose pull backend\",
+    \"IMAGE_TAG=$TAG docker compose up -d --no-deps backend\",
+    \"sleep 20 && curl -sf http://localhost:4000/health/ready && echo HEALTH_OK || echo HEALTH_FAILED\"
   ]" \
   --region "$REGION" \
   --query "Command.CommandId" --output text)
 
 echo "--- Deploy triggered (Command ID: $COMMAND_ID) ---"
-echo "--- Waiting for completion ---"
 aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --region "$REGION" 2>/dev/null || true
 aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --region "$REGION" --query "StandardOutputContent" --output text
 
-echo "=== Deploy complete. URL: https://\$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4).sslip.io ==="
+echo "=== Deploy complete. URL: https://\$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 | tr '.' '-').sslip.io ==="

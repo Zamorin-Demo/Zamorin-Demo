@@ -1,32 +1,29 @@
-# =============================================================================
-# ZAMORIN CAFE ERP — PRODUCTION CADDY CONFIGURATION (AUTOMATIC HTTPS)
-# =============================================================================
-# Usage:
-#   caddy run --config Caddyfile
-# =============================================================================
+# ============================================================================
+# Zamorin Cafe ERP — Demo Caddyfile (auto-HTTPS via Let's Encrypt + sslip.io)
+# No domain needed: https://<elastic-ip-with-dashes>.sslip.io
+# ============================================================================
+{
+    # Email for Let's Encrypt (optional but recommended)
+    # email demo@zamorin.cafe
+}
 
-:3000, :80 {
-    # Serve static frontend files
-    root * ./frontend
+:80, :443 {
+    root * /srv/frontend
     file_server
 
-    # Reverse proxy backend API endpoints
     handle /api/* {
-        reverse_proxy 127.0.0.1:4000
+        reverse_proxy backend:4000
     }
 
-    # SPA Fallback
     handle {
         try_files {path} /index.html
     }
 
-    # Security Headers
     header {
         X-Content-Type-Options nosniff
         X-Frame-Options SAMEORIGIN
         Referrer-Policy strict-origin-when-cross-origin
     }
 
-    # Compression
     encode gzip zstd
 }

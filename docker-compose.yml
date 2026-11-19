@@ -1,12 +1,15 @@
-# NOTE: no top-level `version:` key — it is obsolete in Compose v2 and emits a
-# warning ("the attribute `version` is obsolete").
+# ============================================================================
+# Zamorin Cafe ERP — Demo (AWS EC2 single-box, all-AWS)
+# Backend image is pulled from ECR. Mongo/Redis/Caddy use standard images.
+# Deploy: docker compose pull backend && docker compose up -d --no-deps backend
+# ============================================================================
 services:
   mongodb:
     image: mongo:7.0
     container_name: zamorin-mongodb
     restart: always
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     environment:
       MONGO_INITDB_DATABASE: zamorin_cafe_erp
     entrypoint: [ "/bin/sh", "-c", "mongod --replSet rs0 --bind_ip_all & MONGOD_PID=$$!; until mongosh --eval 'rs.status().ok || rs.initiate({_id: \"rs0\", members: [{_id: 0, host: \"127.0.0.1:27017\"}]})' >/dev/null 2>&1; do sleep 1; done; echo 'MongoDB Replica Set rs0 initialized'; wait $$MONGOD_PID" ]
@@ -16,7 +19,7 @@ services:
       test: ["CMD-SHELL", "mongosh --eval 'db.adminCommand(\"ping\").ok' --quiet"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   redis:
     image: redis:7-alpine
@@ -32,47 +35,44 @@ services:
       retries: 5
 
   backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    # Image pulled from ECR. Tag is injected by deploy script or CI.
+    image: ${ECR_REGISTRY:-000000000000.dkr.ecr.ap-south-1.amazonaws.com}/zamorin-demo:${IMAGE_TAG:-latest}
     container_name: zamorin-backend-api
     restart: always
     ports:
-      - "4000:4000"
-    environment:
-      NODE_ENV: production
-      PORT: 4000
-      TZ: Asia/Kolkata
-      MONGODB_URI: mongodb://mongodb:27017/zamorin_cafe_erp?replicaSet=rs0
-      # NODE_ENV=production enables cluster mode, which hard-requires a real
-      # Redis (redisClientFactory.validateClusterRequirements throws
-      # CLUSTER_REDIS_CONFIG_MISSING otherwise). In-memory fallback is forbidden.
-      REDIS_URL: redis://redis:6379
-      ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,${PRODUCTION_FRONTEND_URL:-http://localhost:3000}
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-zamorin_production_access_secret_32_chars_min}
-      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
-      QR_SIGNING_SECRET: ${QR_SIGNING_SECRET:-zamorin_qr_signing_secret_32_chars_min_val}
-      INITIAL_ORGANISATION_ID: ZAMORIN
-      INITIAL_MASTER_NAME: Zamorin Master
-      INITIAL_MASTER_EMAIL: ${INITIAL_MASTER_EMAIL:-master@zamorincafe.com}
-      INITIAL_MASTER_PASSWORD: ${INITIAL_MASTER_PASSWORD:-ZamorinMaster2026!}
-      PRIVATE_STORAGE_DRIVER: local
+      - "127.0.0.1:4000:4000"
+    env_file:
+      - .env
     depends_on:
       mongodb:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   frontend:
     image: caddy:2-alpine
     container_name: zamorin-frontend-ui
     restart: always
     ports:
-      - "3000:3000"
+      - "80:80"
+      - "443:443"
     volumes:
-      - ./frontend:/usr/share/caddy:ro
-    command: caddy file-server --listen :3000
+      - ./frontend:/srv/frontend:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
 
 volumes:
   mongo_data:
   redis_data:
+  caddy_data:
+  caddy_config:

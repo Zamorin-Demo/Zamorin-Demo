@@ -194,17 +194,14 @@ export async function registerServiceWorker() {
       }
     );
 
-    navigator.serviceWorker.addEventListener(
-      'controllerchange',
-      () => {
-        if (reloadPending) {
-          return;
-        }
-
-        reloadPending = true;
-        window.location.reload();
-      }
-    );
+    // NOTE: Do NOT auto-reload on controllerchange.
+    // The service worker's clients.claim() already takes control of the page.
+    // Reloading here creates an infinite loop when index.html also unregisters
+    // all service workers on every load. The new SW takes effect on the next
+    // page navigation naturally.
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      // Intentionally no-op: let the next navigation pick up the new worker.
+    });
 
     registration
       .update()

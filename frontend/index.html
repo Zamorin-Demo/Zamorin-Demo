@@ -23,16 +23,10 @@
   <script>
     (function() {
       try {
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations().then(function(registrations) {
-            for (var r of registrations) { r.unregister(); }
-          });
-        }
-        if ('caches' in window) {
-          caches.keys().then(function(names) {
-            for (var n of names) caches.delete(n);
-          });
-        }
+        // NOTE: Do NOT unregister service workers or clear caches on every load.
+        // That forces a full SW reinstall + cache rebuild on every navigation,
+        // which combined with the update flow caused an infinite reload loop.
+        // The SW's activate handler already prunes stale caches via CACHE_VERSION.
         var savedTheme = localStorage.getItem('zamorin-theme') || localStorage.getItem('zm-theme');
         if (['azure', 'pearl', 'paper', 'verdigris', 'midnight', 'noir'].indexOf(savedTheme) === -1) savedTheme = 'azure';
         document.documentElement.dataset.theme = savedTheme;

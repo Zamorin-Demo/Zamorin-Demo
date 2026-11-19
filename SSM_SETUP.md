@@ -89,3 +89,34 @@ If this happens, fix it with:
 docker network connect zamorin-demo_default zamorin-frontend-ui
 docker restart zamorin-frontend-ui
 ```
+
+## CRITICAL: Docker Network — Caddy must be on compose network
+
+When starting services, ALWAYS use `docker compose up -d` — never `docker run` for individual services. If Caddy is started outside Compose (via `docker run`), it won't be on the same Docker network as the backend and API calls will return 502 (causing the frontend to appear to continuously reload).
+
+If this happens, fix it with:
+```bash
+docker network connect zamorin-demo_default zamorin-frontend-ui
+docker restart zamorin-frontend-ui
+```
+
+Or better, stop the standalone Caddy and start via compose:
+```bash
+docker stop zamorin-frontend-ui 2>/dev/null || true
+docker rm zamorin-frontend-ui 2>/dev/null || true
+docker compose up -d frontend
+```
+
+## Deployed instance details (already running)
+
+| Resource | Value |
+|---|---|
+| EC2 Instance | i-0809330bf1e8a2aad (t3.small, ap-south-1) |
+| Elastic IP | 13.202.144.116 |
+| Demo URL | https://13-202-144-116.sslip.io |
+| Backend | Running on compose network, healthy |
+| MongoDB | Running on compose network, healthy (replica set rs0) |
+| Redis | Running on compose network, healthy |
+| Caddy/Frontend | Running on compose network, healthy |
+| Login | pradeeshk331@gmail.com / master@zamorin.cafe |
+| App PIN | 847291 |
